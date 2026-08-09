@@ -19,25 +19,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     setupEventListeners();
 
-    // Welcome del publicista: se muestra PRE-AUTH si el visitante llegó por
-    // una vanity URL (/CODE o /publisher-slug) o ?p=CODE. localStorage guarda
-    // si ya lo vio para no repetir en este dispositivo.
-    if (VIP.publisherWelcome && typeof VIP.publisherWelcome.maybeShow === 'function') {
-        // Pequeño delay para que campaign.js termine de inicializar y exponer
-        // VIP.campaign.getActive() — ese es el fallback cuando no hay
-        // window.__VIP_CAMPAIGN_CODE__ inyectado (caso ?p=CODE).
-        setTimeout(() => {
-            VIP.publisherWelcome.maybeShow();
-            // Personaliza el login screen para visitantes de publicista:
-            // botón llamativo "Entrá YA..." + oculta Registrarse. Se aplica
-            // SIEMPRE que haya atribución activa, no sólo la primera visita
-            // (un visitante que ya vio el welcome igual debe ver el login
-            // personalizado al volver al sitio).
-            if (typeof VIP.publisherWelcome.applyLoginCustomizations === 'function') {
-                VIP.publisherWelcome.applyLoginCustomizations();
+    // Carteles de bienvenida pre-auth. Pequeño delay para que campaign.js
+    // termine de inicializar y exponer VIP.campaign.getActive() — ese es el
+    // fallback cuando no hay window.__VIP_CAMPAIGN_CODE__ inyectado (?p=CODE).
+    setTimeout(() => {
+        // Personaliza el login screen para visitantes de publicista:
+        // botón llamativo "Entrá YA..." + oculta Registrarse. Se aplica
+        // SIEMPRE que haya atribución activa, no sólo la primera visita
+        // (un visitante que ya vio el welcome igual debe ver el login
+        // personalizado al volver al sitio).
+        if (VIP.publisherWelcome && typeof VIP.publisherWelcome.applyLoginCustomizations === 'function') {
+            VIP.publisherWelcome.applyLoginCustomizations();
+        }
+
+        // Welcome del publicista: se muestra PRE-AUTH si el visitante llegó
+        // por una vanity URL (/CODE o /publisher-slug) o ?p=CODE.
+        const showPublisherWelcome = () => {
+            if (VIP.publisherWelcome && typeof VIP.publisherWelcome.maybeShow === 'function') {
+                VIP.publisherWelcome.maybeShow();
             }
-        }, 100);
-    }
+        };
+
+        // Cartel de bienvenida general (nueva página de cargas y descargas):
+        // se muestra a TODOS la primera vez, venga como venga (link de acceso
+        // directo, registro o publicista). Si se muestra, el welcome del
+        // publicista queda encadenado para cuando lo cierren; si no (ya lo
+        // vio), el flujo del publicista corre normalmente.
+        const siteWelcomeShown = (VIP.siteWelcome && typeof VIP.siteWelcome.maybeShow === 'function')
+            ? VIP.siteWelcome.maybeShow(showPublisherWelcome)
+            : false;
+        if (!siteWelcomeShown) showPublisherWelcome();
+    }, 100);
 
     // Auto-fill referral code from URL ?ref=CODE
     const urlParams = new URLSearchParams(window.location.search);
@@ -450,6 +462,11 @@ function setupEventListeners() {
         // Publisher welcome — bind de los botones del modal de bienvenida de 2 pasos
         if (VIP.publisherWelcome && typeof VIP.publisherWelcome.init === 'function') {
             VIP.publisherWelcome.init();
+        }
+
+        // Site welcome — bind de la cruz y el click fuera del cartel
+        if (VIP.siteWelcome && typeof VIP.siteWelcome.init === 'function') {
+            VIP.siteWelcome.init();
         }
 
         // Cambio de contraseña — entrada temporal (fallback cuando el SMS no llega)

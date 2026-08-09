@@ -274,3 +274,50 @@
         grid-template-columns: repeat(3, 1fr);
     }
 }
+
+/* ---- Site welcome (cartel de bienvenida general) ---- */
+
+.sw-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    background: rgba(0, 0, 0, 0.4);
+    color: #d4af37;
+    font-size: 17px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.sw-close:hover {
+    background: rgba(212, 175, 55, 0.2);
+}
+
+/* Cruz bloqueada durante la cuenta regresiva: muestra los segundos restantes */
+.sw-close.sw-locked {
+    cursor: not-allowed;
+    opacity: 0.6;
+    color: #b0b0b0;
+    border-color: rgba(255, 255, 255, 0.25);
+    font-size: 14px;
+}
+
+@keyframes swShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-5px); }
+    40% { transform: translateX(5px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+}
+
+.sw-shake {
+    animation: swShake 0.4s ease;
+}
