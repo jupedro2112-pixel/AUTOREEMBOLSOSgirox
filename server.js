@@ -664,7 +664,33 @@ async function setupRedisAdapter() {
     pubClient.on('error', (err) => logger.error(`Redis pub client error: ${err.message}`));
     subClient.on('error', (err) => logger.error(`Redis sub client error: ${err.message}`));
 
-    await Promise.all([pubClient.connect(), subClient.connect()]);
+    // node-redis reintenta la conexión indefinidamente: si el host es
+    // inalcanzable (p.ej. un REDIS_URL interno de otro workspace de Render),
+    // connect() no resuelve nunca y el server jamás llega a listen() — el
+    // deploy muere por "Timed out" esperando el puerto. Tope de 10s y
+    // fallback a modo single-instance para que el arranque nunca se cuelgue.
+    const REDIS_CONNECT_TIMEOUT_MS = 10000;
+    let timeoutId;
+    const connectTimeout = new Promise((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new Error(`Redis unreachable after ${REDIS_CONNECT_TIMEOUT_MS / 1000}s`)),
+        REDIS_CONNECT_TIMEOUT_MS
+      );
+    });
+    try {
+      await Promise.race([
+        Promise.all([pubClient.connect(), subClient.connect()]),
+        connectTimeout
+      ]);
+    } catch (err) {
+      // Cortar los reintentos en background para que no queden logueando
+      // errores eternamente.
+      try { pubClient.destroy ? pubClient.destroy() : pubClient.disconnect(); } catch (_) {}
+      try { subClient.destroy ? subClient.destroy() : subClient.disconnect(); } catch (_) {}
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     io.adapter(createAdapter(pubClient, subClient));
     setRedisClient(pubClient);
