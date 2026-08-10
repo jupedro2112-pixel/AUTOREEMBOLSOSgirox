@@ -9526,6 +9526,30 @@ async function initializeData() {
     console.log('✅ Configuración CBU por defecto creada');
   }
 
+  // Seed inicial de equipos WhatsApp (prefijo de usuario → número del equipo).
+  // Solo corre si la config no existe todavía: una vez creada, la fuente de
+  // verdad es el panel de admin (sección "WhatsApp por equipo") y este seed
+  // no vuelve a pisar nada. Cuando un equipo tenía varias líneas, se tomó la
+  // línea con MÁS usuarios como principal (ajustable desde el panel).
+  const equiposWaConfig = await getConfig('equiposWhatsapp');
+  if (!equiposWaConfig) {
+    await setConfig('equiposWhatsapp', {
+      equipos: [
+        { prefijo: 'roy', nombre: 'ROYAL',    numero: '573003263912' },
+        { prefijo: 'mar', nombre: 'MARSHALL', numero: '50251348557' },
+        { prefijo: 'arg', nombre: 'ARGENTUM', numero: '5213342893092' },
+        { prefijo: 'ign', nombre: 'IGNITE',   numero: '573003263912' },
+        { prefijo: 'tig', nombre: 'TIGER',    numero: '5214443232341' },
+        { prefijo: 'ato', nombre: 'ATOMIC',   numero: '573228681826' },
+        { prefijo: 'zz',  nombre: 'ZZ',       numero: '5521970547821' },
+        { prefijo: 'tri', nombre: 'TRIBET',   numero: '593969325404' },
+        { prefijo: 'cra', nombre: 'CRAZY',    numero: '59163026150' },
+        { prefijo: 'gen', nombre: 'GENERAL',  numero: '573228681826' }
+      ]
+    });
+    console.log('✅ Seed de equipos WhatsApp creado (10 equipos)');
+  }
+
   // Verificar/crear comandos de sistema (mensajes automáticos editables desde COMANDOS)
   const systemCmds = [
     {
@@ -17490,6 +17514,93 @@ app.post('/api/admin/soporte-vip', authMiddleware, adminMiddleware, async (req, 
     res.json({ success: true, telegram: telegram, whatsapp: whatsapp });
   } catch (err) {
     logger.error(`POST /api/admin/soporte-vip: ${err.message}`);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// ============================================================
+// EQUIPOS WHATSAPP — mapeo "prefijo de usuario → WhatsApp del equipo".
+// Los usuarios migrados del viejo autoreembolsos no tienen contraseña en
+// girox: el cartel de bienvenida les ofrece averiguar el WhatsApp de su
+// equipo principal a partir del inicio de su nombre de usuario, para pedir
+// ahí su acceso. La config vive en el config store genérico bajo
+// 'equiposWhatsapp' = { equipos: [{ prefijo, nombre, numero }] }.
+// ============================================================
+
+// Mensaje con el que se abre el chat del equipo. {username} se reemplaza.
+const EQUIPO_WA_MENSAJE = 'Hola! Hablo de la pagina de autoreembolsos. Mi usuario es: {username}. Quiero un acceso para cargar desde la pagina.';
+
+// GET público: dado un username, devuelve el link de WhatsApp del equipo cuyo
+// prefijo coincide con el inicio del usuario. Matchea el prefijo MÁS LARGO
+// (case-insensitive) para que "vip" y "vipgold" convivan. No expone la lista.
+app.get('/api/config/equipo-whatsapp', async (req, res) => {
+  try {
+    const username = String(req.query.username || '').trim().toLowerCase().slice(0, 50);
+    if (!username) return res.status(400).json({ error: 'Falta el usuario' });
+
+    const cfg = (await getConfig('equiposWhatsapp')) || {};
+    const equipos = Array.isArray(cfg.equipos) ? cfg.equipos : [];
+
+    let match = null;
+    for (const eq of equipos) {
+      const pref = String(eq.prefijo || '').trim().toLowerCase();
+      if (!pref || !eq.numero) continue;
+      if (username.startsWith(pref) && (!match || pref.length > String(match.prefijo).toLowerCase().length)) {
+        match = eq;
+      }
+    }
+
+    if (!match) return res.json({ found: false });
+
+    const numero = String(match.numero).replace(/\D/g, '');
+    const texto = EQUIPO_WA_MENSAJE.replace('{username}', String(req.query.username).trim().slice(0, 50));
+    res.json({
+      found: true,
+      equipo: match.nombre || '',
+      url: 'https://wa.me/' + numero + '?text=' + encodeURIComponent(texto)
+    });
+  } catch (err) {
+    logger.error(`/api/config/equipo-whatsapp: ${err.message}`);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// GET admin: lista completa para el panel.
+app.get('/api/admin/equipos-whatsapp', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const cfg = (await getConfig('equiposWhatsapp')) || {};
+    res.json({ equipos: Array.isArray(cfg.equipos) ? cfg.equipos : [] });
+  } catch (err) {
+    logger.error(`GET /api/admin/equipos-whatsapp: ${err.message}`);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST admin: reemplaza la lista completa (el panel edita y guarda todo junto).
+app.post('/api/admin/equipos-whatsapp', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const raw = (req.body && req.body.equipos);
+    if (!Array.isArray(raw)) return res.status(400).json({ error: 'Formato inválido: se espera { equipos: [...] }' });
+    if (raw.length > 100) return res.status(400).json({ error: 'Máximo 100 equipos' });
+
+    const equipos = [];
+    const vistos = new Set();
+    for (const eq of raw) {
+      const prefijo = String((eq && eq.prefijo) || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 20);
+      const nombre = String((eq && eq.nombre) || '').trim().slice(0, 50);
+      const numero = String((eq && eq.numero) || '').replace(/\D/g, '').slice(0, 20);
+      if (!prefijo || !numero) continue; // fila incompleta: se descarta
+      if (numero.length < 8) return res.status(400).json({ error: `Número inválido para el prefijo "${prefijo}" (mínimo 8 dígitos, con código de país)` });
+      if (vistos.has(prefijo)) return res.status(400).json({ error: `Prefijo repetido: "${prefijo}"` });
+      vistos.add(prefijo);
+      equipos.push({ prefijo, nombre, numero });
+    }
+
+    await setConfig('equiposWhatsapp', { equipos });
+    logger.info(`[equipos-whatsapp] ${equipos.length} equipos guardados por ${(req.user && req.user.username) || '?'}`);
+    res.json({ success: true, equipos });
+  } catch (err) {
+    logger.error(`POST /api/admin/equipos-whatsapp: ${err.message}`);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });

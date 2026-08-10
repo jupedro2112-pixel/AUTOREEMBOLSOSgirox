@@ -941,6 +941,27 @@ VIP.auth = (function () {
         }
     }
 
+    // ¿La página está corriendo dentro de la PWA instalada (standalone)?
+    // En iOS la PWA tiene almacenamiento SEPARADO de Safari: si el usuario
+    // migrado creó su contraseña desde un link abierto en el navegador, la app
+    // instalada sigue deslogueada y tiene que entrar ahí con la contraseña
+    // nueva. En Android el storage es compartido y esto no hace falta, pero el
+    // aviso no molesta (solo se muestra fuera de la app).
+    function _isStandalonePwa() {
+        try {
+            return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+                || window.navigator.standalone === true;
+        } catch (e) { return false; }
+    }
+
+    // Tras crear la contraseña en el flujo obligatorio (migración jugaygana →
+    // girox vía link de acceso), avisar que la app instalada se abre con el
+    // usuario y la contraseña recién creada. Solo fuera de la PWA.
+    function _maybeShowPwaLoginNotice() {
+        if (_isStandalonePwa()) return;
+        try { VIP.ui.showModal('pwaLoginNoticeModal'); } catch (e) { /* ignore */ }
+    }
+
     async function _commitPasswordChange({ newPassword, closeAllSessions, phone, otpCode, currentPassword, errorDiv }) {
         try {
             const body = { newPassword, closeAllSessions };
@@ -962,6 +983,7 @@ VIP.auth = (function () {
             const data = await response.json().catch(() => ({}));
 
             if (response.ok) {
+                const wasMandatory = VIP.state.passwordChangePending === true;
                 VIP.state.passwordChangePending = false;
                 // Actualizar contraseña en memoria de sesión para el modal de plataforma
                 VIP.state.sessionPassword = newPassword;
@@ -976,6 +998,10 @@ VIP.auth = (function () {
 
                 VIP.ui.hideModal('changePasswordModal');
                 VIP.ui.showToast('✅ Contraseña guardada exitosamente', 'success');
+                // Aviso para usuarios migrados que crearon la contraseña desde
+                // el navegador: la app instalada se abre con estas credenciales.
+                // Con closeAllSessions no se muestra porque la página recarga.
+                if (wasMandatory && !closeAllSessions) _maybeShowPwaLoginNotice();
                 document.getElementById('newPasswordInput').value = '';
                 document.getElementById('confirmPasswordInput').value = '';
                 const wpInput = document.getElementById('changePasswordWhatsApp');
@@ -1188,6 +1214,7 @@ VIP.auth = (function () {
             }, 1800);
         } else {
             VIP.ui.showToast('⏳ Modo temporal activo. Verificá tu teléfono para poder retirar.', 'info');
+            _maybeShowPwaLoginNotice();
         }
     }
 

@@ -1912,6 +1912,28 @@
     <!-- null). No es cerrable: el usuario tiene que recorrer paso 1 → paso 2 -->
     <!-- → tildar el checkbox → tocar "Comenzar a jugar".                    -->
     <!-- ================================================================== -->
+    <!-- Aviso post-creación de contraseña (flujo obligatorio de migración):
+         si el usuario creó su contraseña desde el navegador, avisarle que la
+         app instalada se abre con esas credenciales. auth.js lo muestra solo
+         fuera de la PWA (_maybeShowPwaLoginNotice). -->
+    <div id="pwaLoginNoticeModal" class="modal hidden">
+        <div class="modal-content" style="max-width: 420px; text-align:center;">
+            <div style="font-size:44px; line-height:1; margin-bottom:10px;">📲</div>
+            <div class="modal-header" style="margin-bottom:12px;">
+                <h2 style="font-size:1.25em; color:#d4af37;">¡Contraseña creada!</h2>
+            </div>
+            <p style="color:#d8d8d8; font-size:14px; line-height:1.55; margin:0 0 10px;">
+                ¿Tenés la app instalada en tu celular?
+            </p>
+            <p style="color:#d8d8d8; font-size:14px; line-height:1.55; margin:0 0 16px; background:rgba(212,175,55,0.08); border:1px solid rgba(212,175,55,0.3); border-radius:10px; padding:12px;">
+                Abrila y entrá con <strong>tu usuario</strong> y la <strong>contraseña que acabás de crear</strong>. 🔑
+            </p>
+            <button type="button" class="btn btn-primary" style="width:100%; padding:13px; font-weight:bold;" onclick="hideModal('pwaLoginNoticeModal')">
+                ✅ Entendido
+            </button>
+        </div>
+    </div>
+
     <!-- Cartel de bienvenida general: nueva página de cargas y descargas.
          Se muestra a TODOS la primera vez que entran (js/sitewelcome.js).
          La cruz queda bloqueada los primeros 5 segundos. -->
@@ -1941,7 +1963,27 @@
                     <li style="display:flex; align-items:flex-start; gap:8px;"><span style="color:#00ff88;">✓</span><span>Atención por chat, sin depender de WhatsApp</span></li>
                     <li style="display:flex; align-items:flex-start; gap:8px;"><span style="color:#00ff88;">✓</span><span>Acreditaciones al instante, las 24 horas</span></li>
                 </ul>
-            </div>
+
+                <div style="background:rgba(37,211,102,0.08); border:1px solid rgba(37,211,102,0.35); border-radius:10px; padding:12px; font-size:13.5px;">
+                    <p style="margin:0;">🔑 Para conseguir tu <strong>usuario y contraseña nuevos</strong>, hablá con tu <strong>WhatsApp principal</strong> y pedí tu acceso.</p>
+                </div>
+
+                <!-- Buscador de equipo: completa su usuario y le damos el link
+                     al WhatsApp de su equipo (detectado por el inicio del
+                     nombre de usuario, sitewelcome.js). -->
+                <button type="button" id="swTeamToggleBtn" style="background:none; border:none; color:#25d366; font-size:13px; cursor:pointer; text-decoration:underline; padding:4px; justify-self:center;">
+                    📱 ¿No sabés cuál es tu WhatsApp? Averigualo acá
+                </button>
+
+                <div id="swTeamFinder" style="display:none; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:12px;">
+                    <p style="margin:0 0 8px; font-size:13px;">Escribí tu <strong>usuario</strong> (como lo usabas siempre) y te decimos a qué WhatsApp hablar:</p>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="swTeamUsername" placeholder="Tu usuario..." maxlength="50" autocomplete="off"
+                               style="flex:1; min-width:0; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.4); color:#fff; font-size:14px;">
+                        <button type="button" id="swTeamSearchBtn" class="btn btn-primary" style="padding:10px 14px; white-space:nowrap;">Buscar</button>
+                    </div>
+                    <div id="swTeamResult" style="display:none; margin-top:10px;"></div>
+                </div>
 
             <div id="siteWelcomeWaitNotice" style="display:none; margin-top:14px; background:rgba(255,80,80,0.12); border:1px solid rgba(255,80,80,0.4); border-radius:8px; padding:10px 12px; color:#ffb0b0; font-size:13px; text-align:center;"></div>
 

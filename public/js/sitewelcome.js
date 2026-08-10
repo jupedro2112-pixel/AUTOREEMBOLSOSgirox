@@ -110,6 +110,63 @@ VIP.siteWelcome = (function () {
         return true;
     }
 
+    // ---- Buscador de WhatsApp del equipo ----
+    // El usuario migrado no sabe/recuerda a qué WhatsApp pedir su acceso:
+    // completa su usuario y el server detecta el equipo por el INICIO del
+    // nombre (config 'equiposWhatsapp' cargada desde el panel de admin).
+
+    function _toggleTeamFinder() {
+        const finder = document.getElementById('swTeamFinder');
+        if (!finder) return;
+        const visible = finder.style.display !== 'none';
+        finder.style.display = visible ? 'none' : '';
+        if (!visible) {
+            const input = document.getElementById('swTeamUsername');
+            if (input) setTimeout(() => input.focus(), 50);
+        }
+    }
+
+    function _renderTeamResult(html) {
+        const box = document.getElementById('swTeamResult');
+        if (!box) return;
+        box.innerHTML = html;
+        box.style.display = '';
+    }
+
+    async function _searchTeam() {
+        const input = document.getElementById('swTeamUsername');
+        const btn = document.getElementById('swTeamSearchBtn');
+        const username = input ? input.value.trim() : '';
+        if (!username) {
+            _renderTeamResult('<p style="margin:0; color:#ffb0b0; font-size:13px;">Escribí tu usuario primero.</p>');
+            return;
+        }
+        if (btn) { btn.disabled = true; btn.textContent = '...'; }
+        try {
+            const resp = await fetch(`${VIP.config.API_URL}/api/config/equipo-whatsapp?username=${encodeURIComponent(username)}`);
+            const data = await resp.json().catch(() => ({}));
+            if (resp.ok && data.found && data.url) {
+                _renderTeamResult(
+                    '<div style="background:rgba(37,211,102,0.1); border:1px solid rgba(37,211,102,0.4); border-radius:8px; padding:12px; text-align:center;">' +
+                        '<p style="margin:0 0 10px; font-size:13px;">✅ ¡Detectamos tu equipo! Tocá el botón y pedí tu acceso:</p>' +
+                        '<a href="' + data.url + '" target="_blank" rel="noopener" ' +
+                           'style="display:block; background:#25d366; color:#fff; font-weight:bold; text-decoration:none; padding:12px; border-radius:8px; font-size:14px;">' +
+                            '💬 Hablar por WhatsApp' +
+                        '</a>' +
+                    '</div>'
+                );
+            } else if (resp.ok && !data.found) {
+                _renderTeamResult('<p style="margin:0; color:#ffb0b0; font-size:13px;">❌ No detectamos tu equipo con ese usuario. Revisá que esté bien escrito (tal como lo usabas siempre).</p>');
+            } else {
+                _renderTeamResult('<p style="margin:0; color:#ffb0b0; font-size:13px;">Hubo un error, probá de nuevo en unos segundos.</p>');
+            }
+        } catch (e) {
+            _renderTeamResult('<p style="margin:0; color:#ffb0b0; font-size:13px;">Error de conexión, probá de nuevo.</p>');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = 'Buscar'; }
+        }
+    }
+
     // Bind de eventos. Se llama una sola vez desde app.js.
     function init() {
         const modal = document.getElementById('siteWelcomeModal');
@@ -119,6 +176,17 @@ VIP.siteWelcome = (function () {
             // Tocar fuera del cartel (el overlay oscuro) también cierra.
             modal.addEventListener('click', function (e) {
                 if (e.target === modal) _tryClose();
+            });
+        }
+
+        const toggleBtn = document.getElementById('swTeamToggleBtn');
+        const searchBtn = document.getElementById('swTeamSearchBtn');
+        const usernameInput = document.getElementById('swTeamUsername');
+        if (toggleBtn) toggleBtn.addEventListener('click', _toggleTeamFinder);
+        if (searchBtn) searchBtn.addEventListener('click', _searchTeam);
+        if (usernameInput) {
+            usernameInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); _searchTeam(); }
             });
         }
     }

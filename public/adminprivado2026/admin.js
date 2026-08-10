@@ -4652,6 +4652,7 @@ function switchSection(section) {
             return;
         }
         loadSoporteVip();
+        loadEquiposWhatsapp();
         if (!smsAccessGranted) {
             showSmsPasswordModal();
         } else {
@@ -6167,6 +6168,81 @@ async function saveSoporteVip() {
         }
     } catch (error) {
         console.error('Error saving soporte:', error);
+        showToast('Error al guardar', 'error');
+    }
+}
+
+// ============================================================
+// EQUIPOS WHATSAPP — mapeo "prefijo de usuario → WhatsApp del equipo".
+// Alimenta el buscador del cartel de bienvenida de la página.
+// ============================================================
+
+function _equipoWaRowHtml(eq) {
+    const prefijo = (eq && eq.prefijo) || '';
+    const nombre = (eq && eq.nombre) || '';
+    const numero = (eq && eq.numero) || '';
+    return '<tr>' +
+        '<td style="padding:.3rem .4rem;"><input type="text" class="equipoWaPrefijo" value="' + prefijo.replace(/"/g, '&quot;') + '" placeholder="vip" maxlength="20" style="width:100%;"></td>' +
+        '<td style="padding:.3rem .4rem;"><input type="text" class="equipoWaNombre" value="' + nombre.replace(/"/g, '&quot;') + '" placeholder="Equipo VIP" maxlength="50" style="width:100%;"></td>' +
+        '<td style="padding:.3rem .4rem;"><input type="text" class="equipoWaNumero" value="' + numero.replace(/"/g, '&quot;') + '" placeholder="5491122334455" maxlength="20" style="width:100%;"></td>' +
+        '<td style="padding:.3rem .4rem; text-align:center;"><button type="button" onclick="this.closest(\'tr\').remove()" title="Quitar" style="background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:16px;">🗑</button></td>' +
+    '</tr>';
+}
+
+function addEquipoWaRow(eq) {
+    const tabla = document.getElementById('equiposWaTabla');
+    if (!tabla) return;
+    tabla.insertAdjacentHTML('beforeend', _equipoWaRowHtml(eq));
+}
+
+async function loadEquiposWhatsapp() {
+    const tabla = document.getElementById('equiposWaTabla');
+    if (!tabla) return;
+    try {
+        const response = await fetch(`${API_URL}/api/admin/equipos-whatsapp`, {
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        tabla.innerHTML = '';
+        (data.equipos || []).forEach(eq => addEquipoWaRow(eq));
+        if (!data.equipos || !data.equipos.length) addEquipoWaRow();
+    } catch (error) {
+        console.error('Error loading equipos whatsapp:', error);
+    }
+}
+
+async function saveEquiposWhatsapp() {
+    const tabla = document.getElementById('equiposWaTabla');
+    if (!tabla) return;
+    const equipos = [];
+    tabla.querySelectorAll('tr').forEach(tr => {
+        const prefijo = (tr.querySelector('.equipoWaPrefijo') || {}).value || '';
+        const nombre = (tr.querySelector('.equipoWaNombre') || {}).value || '';
+        const numero = (tr.querySelector('.equipoWaNumero') || {}).value || '';
+        if (prefijo.trim() || numero.trim()) equipos.push({ prefijo: prefijo.trim(), nombre: nombre.trim(), numero: numero.trim() });
+    });
+    try {
+        const response = await fetch(`${API_URL}/api/admin/equipos-whatsapp`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentToken}`
+            },
+            body: JSON.stringify({ equipos })
+        });
+        const data = await response.json();
+        if (response.ok) {
+            const tablaEl = document.getElementById('equiposWaTabla');
+            tablaEl.innerHTML = '';
+            (data.equipos || []).forEach(eq => addEquipoWaRow(eq));
+            if (!data.equipos || !data.equipos.length) addEquipoWaRow();
+            showToast(`${(data.equipos || []).length} equipos guardados`, 'success');
+        } else {
+            showToast(data.error || 'Error al guardar', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving equipos whatsapp:', error);
         showToast('Error al guardar', 'error');
     }
 }

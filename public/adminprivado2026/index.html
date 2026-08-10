@@ -2256,6 +2256,36 @@ document.addEventListener('change', function (ev) {
                         <span class="icon icon-save"></span> Guardar soporte
                     </button>
                 </div>
+
+                <!-- Equipos WhatsApp — mapeo "inicio de usuario → WhatsApp del
+                     equipo". Lo usa el cartel de bienvenida de la página para
+                     que los usuarios migrados pidan su acceso al equipo correcto. -->
+                <div class="panel-subheader" style="margin-top:24px;">
+                    <h3>📱 WhatsApp por equipo (inicio de usuario)</h3>
+                </div>
+                <div class="cbu-form">
+                    <p style="color:#aaa;font-size:12px;margin:0 0 10px;">
+                        Si el usuario empieza con el prefijo, el cartel de bienvenida le da el botón de WhatsApp de ese equipo.
+                        Ejemplo: prefijo <code>vip</code> matchea <code>vipjuan22</code>. Si dos prefijos coinciden, gana el más largo.
+                    </p>
+                    <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
+                        <thead>
+                            <tr>
+                                <th style="padding:.4rem .6rem;text-align:left;color:#a5b4fc;font-size:12px;">Prefijo</th>
+                                <th style="padding:.4rem .6rem;text-align:left;color:#a5b4fc;font-size:12px;">Equipo (opcional)</th>
+                                <th style="padding:.4rem .6rem;text-align:left;color:#a5b4fc;font-size:12px;">WhatsApp (con cód. país)</th>
+                                <th style="width:40px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="equiposWaTabla"></tbody>
+                    </table>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-secondary" onclick="addEquipoWaRow()">➕ Agregar equipo</button>
+                        <button class="btn-primary" onclick="saveEquiposWhatsapp()">
+                            <span class="icon icon-save"></span> Guardar equipos
+                        </button>
+                    </div>
+                </div>
             </section>
 
             <!-- ================================================== -->
