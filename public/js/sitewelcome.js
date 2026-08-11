@@ -159,6 +159,18 @@ VIP.siteWelcome = (function () {
                         '</a>' +
                     '</div>'
                 );
+            } else if (resp.ok && !data.found && data.generalUrl) {
+                // Sin equipo detectado pero hay WhatsApp GENERAL: derivar ahí
+                // para que nadie quede sin contacto.
+                _renderTeamResult(
+                    '<div style="background:rgba(212,175,55,0.08); border:1px solid rgba(212,175,55,0.35); border-radius:8px; padding:12px; text-align:center;">' +
+                        '<p style="margin:0 0 10px; font-size:13px;">🤔 No detectamos tu equipo con ese usuario, pero podés hablar con nuestro <strong>WhatsApp general</strong> y ellos te ayudan:</p>' +
+                        '<a href="' + data.generalUrl + '" target="_blank" rel="noopener" ' +
+                           'style="display:block; background:#25d366; color:#fff; font-weight:bold; text-decoration:none; padding:12px; border-radius:8px; font-size:14px;">' +
+                            '💬 Hablar con el WhatsApp general' +
+                        '</a>' +
+                    '</div>'
+                );
             } else if (resp.ok && !data.found) {
                 _renderTeamResult('<p style="margin:0; color:#ffb0b0; font-size:13px;">❌ No detectamos tu equipo con ese usuario. Revisá que esté bien escrito (tal como lo usabas siempre).</p>');
             } else {

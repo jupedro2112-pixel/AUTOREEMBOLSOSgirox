@@ -2279,6 +2279,11 @@ document.addEventListener('change', function (ev) {
                         </thead>
                         <tbody id="equiposWaTabla"></tbody>
                     </table>
+                    <div class="form-group" style="margin-top:10px;">
+                        <label>WhatsApp GENERAL (si no se detecta ningún equipo):</label>
+                        <input type="text" id="equiposWaGeneral" placeholder="5491122334455" maxlength="20" style="width:100%;">
+                        <small style="color:#aaa;font-size:11px;">Fallback para que nadie quede sin contacto: si el usuario no matchea ningún prefijo, el cartel le ofrece este número. Vacío = sin fallback.</small>
+                    </div>
                     <div style="display:flex; gap:8px;">
                         <button class="btn btn-secondary" onclick="addEquipoWaRow()">➕ Agregar equipo</button>
                         <button class="btn-primary" onclick="saveEquiposWhatsapp()">

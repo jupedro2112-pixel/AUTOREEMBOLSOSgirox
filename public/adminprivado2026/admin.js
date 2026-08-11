@@ -6207,6 +6207,8 @@ async function loadEquiposWhatsapp() {
         tabla.innerHTML = '';
         (data.equipos || []).forEach(eq => addEquipoWaRow(eq));
         if (!data.equipos || !data.equipos.length) addEquipoWaRow();
+        const generalInput = document.getElementById('equiposWaGeneral');
+        if (generalInput) generalInput.value = data.general || '';
     } catch (error) {
         console.error('Error loading equipos whatsapp:', error);
     }
@@ -6222,6 +6224,8 @@ async function saveEquiposWhatsapp() {
         const numero = (tr.querySelector('.equipoWaNumero') || {}).value || '';
         if (prefijo.trim() || numero.trim()) equipos.push({ prefijo: prefijo.trim(), nombre: nombre.trim(), numero: numero.trim() });
     });
+    const generalInput = document.getElementById('equiposWaGeneral');
+    const general = generalInput ? generalInput.value.trim() : '';
     try {
         const response = await fetch(`${API_URL}/api/admin/equipos-whatsapp`, {
             method: 'POST',
@@ -6229,7 +6233,7 @@ async function saveEquiposWhatsapp() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${currentToken}`
             },
-            body: JSON.stringify({ equipos })
+            body: JSON.stringify({ equipos, general })
         });
         const data = await response.json();
         if (response.ok) {
@@ -6237,6 +6241,7 @@ async function saveEquiposWhatsapp() {
             tablaEl.innerHTML = '';
             (data.equipos || []).forEach(eq => addEquipoWaRow(eq));
             if (!data.equipos || !data.equipos.length) addEquipoWaRow();
+            if (generalInput) generalInput.value = data.general || '';
             showToast(`${(data.equipos || []).length} equipos guardados`, 'success');
         } else {
             showToast(data.error || 'Error al guardar', 'error');

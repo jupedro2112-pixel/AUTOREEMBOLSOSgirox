@@ -17540,15 +17540,26 @@ const EQUIPOS_WA_SEED = [
   { prefijo: 'gen', nombre: 'GENERAL',  numero: '573228681826' }
 ];
 
+// WhatsApp GENERAL: fallback cuando el usuario no matchea ningún prefijo,
+// para que nadie quede sin contacto. Configurable desde el panel.
+const EQUIPOS_WA_GENERAL_SEED = '573228681826';
+
 // Devuelve la config de equipos, creándola con el seed la PRIMERA vez que
 // alguien la consulta (lazy). Así no depende de que initializeData termine:
 // una vez creada, la fuente de verdad es el panel y esto no pisa nada.
 async function ensureEquiposWaConfig() {
   let cfg = await getConfig('equiposWhatsapp');
   if (!cfg) {
-    cfg = { equipos: EQUIPOS_WA_SEED };
+    cfg = { equipos: EQUIPOS_WA_SEED, general: EQUIPOS_WA_GENERAL_SEED };
     await setConfig('equiposWhatsapp', cfg);
-    console.log(`✅ Seed de equipos WhatsApp creado (${EQUIPOS_WA_SEED.length} equipos)`);
+    console.log(`✅ Seed de equipos WhatsApp creado (${EQUIPOS_WA_SEED.length} equipos + general)`);
+  } else if (cfg.general === undefined) {
+    // Config creada por el seed viejo (sin campo general): backfill una sola
+    // vez. Si el admin después lo vacía a propósito, queda '' (definido) y
+    // este backfill no vuelve a pisarlo.
+    cfg.general = EQUIPOS_WA_GENERAL_SEED;
+    await setConfig('equiposWhatsapp', cfg);
+    console.log('✅ Backfill: WhatsApp general agregado a la config de equipos');
   }
   return cfg;
 }
@@ -17573,10 +17584,22 @@ app.get('/api/config/equipo-whatsapp', async (req, res) => {
       }
     }
 
-    if (!match) return res.json({ found: false });
+    const texto = EQUIPO_WA_MENSAJE.replace('{username}', String(req.query.username).trim().slice(0, 50));
+
+    if (!match) {
+      // Fallback: sin equipo detectado, derivar al WhatsApp GENERAL (si está
+      // configurado) para que el usuario no quede sin contacto.
+      const generalNum = String(cfg.general || '').replace(/\D/g, '');
+      if (generalNum) {
+        return res.json({
+          found: false,
+          generalUrl: 'https://wa.me/' + generalNum + '?text=' + encodeURIComponent(texto)
+        });
+      }
+      return res.json({ found: false });
+    }
 
     const numero = String(match.numero).replace(/\D/g, '');
-    const texto = EQUIPO_WA_MENSAJE.replace('{username}', String(req.query.username).trim().slice(0, 50));
     res.json({
       found: true,
       equipo: match.nombre || '',
@@ -17592,7 +17615,10 @@ app.get('/api/config/equipo-whatsapp', async (req, res) => {
 app.get('/api/admin/equipos-whatsapp', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const cfg = await ensureEquiposWaConfig();
-    res.json({ equipos: Array.isArray(cfg.equipos) ? cfg.equipos : [] });
+    res.json({
+      equipos: Array.isArray(cfg.equipos) ? cfg.equipos : [],
+      general: String(cfg.general || '')
+    });
   } catch (err) {
     logger.error(`GET /api/admin/equipos-whatsapp: ${err.message}`);
     res.status(500).json({ error: 'Error del servidor' });
@@ -17619,9 +17645,15 @@ app.post('/api/admin/equipos-whatsapp', authMiddleware, adminMiddleware, async (
       equipos.push({ prefijo, nombre, numero });
     }
 
-    await setConfig('equiposWhatsapp', { equipos });
-    logger.info(`[equipos-whatsapp] ${equipos.length} equipos guardados por ${(req.user && req.user.username) || '?'}`);
-    res.json({ success: true, equipos });
+    // WhatsApp general (fallback sin equipo). Vacío = sin fallback.
+    const general = String((req.body && req.body.general) || '').replace(/\D/g, '').slice(0, 20);
+    if (general && general.length < 8) {
+      return res.status(400).json({ error: 'Número general inválido (mínimo 8 dígitos, con código de país)' });
+    }
+
+    await setConfig('equiposWhatsapp', { equipos, general });
+    logger.info(`[equipos-whatsapp] ${equipos.length} equipos + general=${general || '(vacío)'} guardados por ${(req.user && req.user.username) || '?'}`);
+    res.json({ success: true, equipos, general });
   } catch (err) {
     logger.error(`POST /api/admin/equipos-whatsapp: ${err.message}`);
     res.status(500).json({ error: 'Error del servidor' });
