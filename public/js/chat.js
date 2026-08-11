@@ -666,7 +666,16 @@ VIP.chat = (function () {
     const CANAL_FALLBACK_URL = '/go/comunidad';
 
     function _applyCanalUrl(url) {
-        const href = url || CANAL_FALLBACK_URL;
+        // COMUNIDAD POR EQUIPO (2026-08-11): con usuario logueado, el link va
+        // SIEMPRE por el redirect del server con ?u=<username> — el server
+        // detecta el equipo por el inicio del usuario (misma regla que el
+        // WhatsApp por equipo) y lo manda a la comunidad de SU equipo, con el
+        // Canal Oficial como fallback. Sin username (config aplicada antes del
+        // login), comportamiento de siempre: link directo o fallback genérico.
+        const uname = (VIP.state && VIP.state.currentUser && VIP.state.currentUser.username) || '';
+        const href = uname
+            ? (CANAL_FALLBACK_URL + '?u=' + encodeURIComponent(uname))
+            : (url || CANAL_FALLBACK_URL);
         const menuBtn = document.getElementById('canalInformativoBtn');
         const headerBtn = document.getElementById('canalTelegramHeaderBtn');
         if (menuBtn) { menuBtn.href = href; menuBtn.style.display = 'inline-flex'; }

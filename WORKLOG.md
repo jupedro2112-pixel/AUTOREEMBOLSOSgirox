@@ -8,6 +8,23 @@
 
 ## Sesión 2026-08-11 (repo AUTOREEMBOLSOSgirox)
 
+### 155. El botón celeste de la app ("Unite a la Comunidad") ahora es POR EQUIPO
+- **Pedido del owner:** que el botón de Comunidad de adentro de la app (pill
+  del header + opción del menú ☰) redirija según el nombre de usuario logueado.
+- **Server:** `/go/comunidad` acepta `?u=<username>` y detecta el equipo por
+  prefijo (solo cuentan equipos CON link de Telegram cargado, para que uno sin
+  link no gane el match). Prioridad: comunidad del equipo → Canal Oficial
+  (card Comunidad) → Telegram GENERAL (sección equipos) → `/`.
+- **Front (chat.js):** `_applyCanalUrl` — con usuario logueado los dos botones
+  apuntan SIEMPRE a `/go/comunidad?u=<username>` (el server decide al momento
+  del click, config siempre fresca); sin username, comportamiento anterior
+  (link directo o fallback). auth.js ya re-llama `loadCanalInformativoUrl()`
+  tras el login, así el href se actualiza con el username.
+- **Panel:** leyenda del "Canal Oficial Telegram" actualizada (explica la
+  cadena de fallbacks; la mención al 404 estaba stale desde /go/comunidad).
+- **Validado:** `node --check` OK (server.js, chat.js). Los links de Telegram
+  por equipo se cargan en panel → sección SMS → "WhatsApp por equipo".
+
 ### 154. Comunidad de TELEGRAM por equipo (mismo mecanismo que el WhatsApp por equipo)
 - **Pedido del owner:** igual que se detecta el equipo por el inicio del
   usuario para dar el WhatsApp, dar también el link de la COMUNIDAD de

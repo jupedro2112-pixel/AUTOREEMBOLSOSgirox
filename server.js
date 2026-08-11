@@ -17391,8 +17391,34 @@ app.get('/api/config/community', authMiddleware, async (req, res) => {
 app.get('/go/comunidad', async (req, res) => {
   let url = '';
   try {
-    const c = (await getConfig('communityConfig')) || {};
-    url = c.channelUrl || c.url || (await getConfig('canalInformativoUrl', '')) || '';
+    // COMUNIDAD POR EQUIPO (owner 2026-08-11): si el front manda ?u=<username>
+    // (usuario logueado), se detecta el equipo por el INICIO del usuario —
+    // misma regla de prefijos que el WhatsApp por equipo — y se redirige a la
+    // comunidad de Telegram de ESE equipo. Prioridad de fallbacks: equipo sin
+    // link (o sin equipo) → Canal Oficial de la card Comunidad → Telegram
+    // GENERAL de la sección de equipos → inicio del dominio.
+    const u = String(req.query.u || '').trim().toLowerCase().slice(0, 50);
+    let cfgEquipos = null;
+    if (u) {
+      cfgEquipos = await ensureEquiposWaConfig();
+      const equipos = Array.isArray(cfgEquipos.equipos) ? cfgEquipos.equipos : [];
+      let match = null;
+      for (const eq of equipos) {
+        const pref = String(eq.prefijo || '').trim().toLowerCase();
+        // Solo cuentan los equipos CON link de Telegram cargado: uno sin link
+        // no debe "ganar" el match y mandarte al fallback pudiendo otro prefijo.
+        if (!pref || !normalizeTelegramLink(eq.telegram)) continue;
+        if (u.startsWith(pref) && (!match || pref.length > String(match.prefijo).toLowerCase().length)) {
+          match = eq;
+        }
+      }
+      if (match) url = normalizeTelegramLink(match.telegram);
+    }
+    if (!url) {
+      const c = (await getConfig('communityConfig')) || {};
+      url = c.channelUrl || c.url || (await getConfig('canalInformativoUrl', '')) || '';
+    }
+    if (!url && cfgEquipos) url = normalizeTelegramLink(cfgEquipos.telegramGeneral);
   } catch (_) { /* DB caída: cae al inicio */ }
   res.redirect(302, /^https?:\/\//i.test(url) ? url : '/');
 });
