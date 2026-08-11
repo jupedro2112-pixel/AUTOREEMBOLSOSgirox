@@ -9526,29 +9526,9 @@ async function initializeData() {
     console.log('✅ Configuración CBU por defecto creada');
   }
 
-  // Seed inicial de equipos WhatsApp (prefijo de usuario → número del equipo).
-  // Solo corre si la config no existe todavía: una vez creada, la fuente de
-  // verdad es el panel de admin (sección "WhatsApp por equipo") y este seed
-  // no vuelve a pisar nada. Cuando un equipo tenía varias líneas, se tomó la
-  // línea con MÁS usuarios como principal (ajustable desde el panel).
-  const equiposWaConfig = await getConfig('equiposWhatsapp');
-  if (!equiposWaConfig) {
-    await setConfig('equiposWhatsapp', {
-      equipos: [
-        { prefijo: 'roy', nombre: 'ROYAL',    numero: '573003263912' },
-        { prefijo: 'mar', nombre: 'MARSHALL', numero: '50251348557' },
-        { prefijo: 'arg', nombre: 'ARGENTUM', numero: '5213342893092' },
-        { prefijo: 'ign', nombre: 'IGNITE',   numero: '573003263912' },
-        { prefijo: 'tig', nombre: 'TIGER',    numero: '5214443232341' },
-        { prefijo: 'ato', nombre: 'ATOMIC',   numero: '573228681826' },
-        { prefijo: 'zz',  nombre: 'ZZ',       numero: '5521970547821' },
-        { prefijo: 'tri', nombre: 'TRIBET',   numero: '593969325404' },
-        { prefijo: 'cra', nombre: 'CRAZY',    numero: '59163026150' },
-        { prefijo: 'gen', nombre: 'GENERAL',  numero: '573228681826' }
-      ]
-    });
-    console.log('✅ Seed de equipos WhatsApp creado (10 equipos)');
-  }
+  // Seed de equipos WhatsApp: se crea lazy en ensureEquiposWaConfig() la
+  // primera vez que alguien consulta (no depende de que este boot termine).
+  try { await ensureEquiposWaConfig(); } catch (e) { /* la vía lazy lo cubre */ }
 
   // Verificar/crear comandos de sistema (mensajes automáticos editables desde COMANDOS)
   const systemCmds = [
@@ -17530,6 +17510,34 @@ app.post('/api/admin/soporte-vip', authMiddleware, adminMiddleware, async (req, 
 // Mensaje con el que se abre el chat del equipo. {username} se reemplaza.
 const EQUIPO_WA_MENSAJE = 'Hola! Hablo de la pagina de autoreembolsos. Mi usuario es: {username}. Quiero un acceso para cargar desde la pagina.';
 
+// Seed inicial: prefijo (primeras 3 letras del equipo) → línea principal.
+// Cuando un equipo tenía varias líneas, se tomó la de MÁS usuarios.
+const EQUIPOS_WA_SEED = [
+  { prefijo: 'roy', nombre: 'ROYAL',    numero: '573003263912' },
+  { prefijo: 'mar', nombre: 'MARSHALL', numero: '50251348557' },
+  { prefijo: 'arg', nombre: 'ARGENTUM', numero: '5213342893092' },
+  { prefijo: 'ign', nombre: 'IGNITE',   numero: '573003263912' },
+  { prefijo: 'tig', nombre: 'TIGER',    numero: '5214443232341' },
+  { prefijo: 'ato', nombre: 'ATOMIC',   numero: '573228681826' },
+  { prefijo: 'zz',  nombre: 'ZZ',       numero: '5521970547821' },
+  { prefijo: 'tri', nombre: 'TRIBET',   numero: '593969325404' },
+  { prefijo: 'cra', nombre: 'CRAZY',    numero: '59163026150' },
+  { prefijo: 'gen', nombre: 'GENERAL',  numero: '573228681826' }
+];
+
+// Devuelve la config de equipos, creándola con el seed la PRIMERA vez que
+// alguien la consulta (lazy). Así no depende de que initializeData termine:
+// una vez creada, la fuente de verdad es el panel y esto no pisa nada.
+async function ensureEquiposWaConfig() {
+  let cfg = await getConfig('equiposWhatsapp');
+  if (!cfg) {
+    cfg = { equipos: EQUIPOS_WA_SEED };
+    await setConfig('equiposWhatsapp', cfg);
+    console.log(`✅ Seed de equipos WhatsApp creado (${EQUIPOS_WA_SEED.length} equipos)`);
+  }
+  return cfg;
+}
+
 // GET público: dado un username, devuelve el link de WhatsApp del equipo cuyo
 // prefijo coincide con el inicio del usuario. Matchea el prefijo MÁS LARGO
 // (case-insensitive) para que "vip" y "vipgold" convivan. No expone la lista.
@@ -17538,7 +17546,7 @@ app.get('/api/config/equipo-whatsapp', async (req, res) => {
     const username = String(req.query.username || '').trim().toLowerCase().slice(0, 50);
     if (!username) return res.status(400).json({ error: 'Falta el usuario' });
 
-    const cfg = (await getConfig('equiposWhatsapp')) || {};
+    const cfg = await ensureEquiposWaConfig();
     const equipos = Array.isArray(cfg.equipos) ? cfg.equipos : [];
 
     let match = null;
@@ -17568,7 +17576,7 @@ app.get('/api/config/equipo-whatsapp', async (req, res) => {
 // GET admin: lista completa para el panel.
 app.get('/api/admin/equipos-whatsapp', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const cfg = (await getConfig('equiposWhatsapp')) || {};
+    const cfg = await ensureEquiposWaConfig();
     res.json({ equipos: Array.isArray(cfg.equipos) ? cfg.equipos : [] });
   } catch (err) {
     logger.error(`GET /api/admin/equipos-whatsapp: ${err.message}`);
