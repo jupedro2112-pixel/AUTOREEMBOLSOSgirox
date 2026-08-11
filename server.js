@@ -18106,13 +18106,21 @@ if (process.env.VERCEL) {
       console.warn('⚠️  ADVERTENCIA: JWT_SECRET es corto (' + JWT_SECRET.length + ' caracteres). Se recomienda 32+ para mayor seguridad.');
     }
 
+    // Abrir el puerto ANTES de las migraciones/seeds: Render (y EB) esperan
+    // que el servicio bindee un puerto en pocos minutos y matan el deploy con
+    // "Timed out" si no aparece. initializeData puede tardar (backfills y
+    // migraciones contra Mongo), así que corre en segundo plano — igual que
+    // ya pasaba cuando Mongo no conectaba: la app siempre escuchó sin esperar
+    // los datos, los endpoints degradan solos hasta que la DB esté lista.
+    server.listen(PORT, () => {
+      logger.info(`Server started on port ${PORT} (${process.env.NODE_ENV || 'development'})`);
+    });
+
     await initializeData();
     await setupRedisAdapter();
     // Worker periódico que reprocesa la cola de webhooks a fb-ads.
     fbAdsWebhook.startWorker();
-    server.listen(PORT, () => {
-      logger.info(`Server started on port ${PORT} (${process.env.NODE_ENV || 'development'})`);
-    });
+    logger.info('[boot] initializeData + adaptadores completados');
 
     // Apagado ORDENADO: al recibir SIGTERM/SIGINT (deploy/reinicio de EB), dejamos de
     // aceptar conexiones nuevas y terminamos los pedidos EN CURSO antes de salir. Sin
