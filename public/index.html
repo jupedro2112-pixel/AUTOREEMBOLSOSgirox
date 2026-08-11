@@ -557,6 +557,17 @@
                  listener de app.js queda con su guard `if (logoutBtn)` sin efecto. -->
         </div>
         </header>
+
+        <!-- Banner promo deslizante. Va en el flujo normal del layout (flex
+             column del chat-screen), así empuja el contenido y no tapa nada.
+             Cada copia del texto lleva su propio padding-right: el track anima
+             translateX(-50%) y el loop cierra perfecto con 2 copias iguales. -->
+        <div class="promo-marquee" aria-hidden="true">
+            <div class="promo-marquee-track">
+                <span>🎁 Recordá que cargando desde aquí contás con reembolsos y el 10% en todas tus cargas durante todo agosto 🎁</span>
+                <span>🎁 Recordá que cargando desde aquí contás con reembolsos y el 10% en todas tus cargas durante todo agosto 🎁</span>
+            </div>
+        </div>
         <script>
         // Abrir/cerrar el menú hamburguesa. Se cierra al tocar afuera o al elegir
         // una opción (con un delay chico para que el click de la opción dispare

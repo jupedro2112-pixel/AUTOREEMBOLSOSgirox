@@ -6,6 +6,35 @@
     flex-direction: column;
 }
 
+/* Banner promo deslizante (entre el header y el chat, sin tapar nada) */
+.promo-marquee {
+    flex: 0 0 auto;
+    overflow: hidden;
+    white-space: nowrap;
+    background: linear-gradient(90deg, rgba(212, 175, 55, 0.16), rgba(0, 255, 136, 0.10), rgba(212, 175, 55, 0.16));
+    border-bottom: 1px solid rgba(212, 175, 55, 0.35);
+    padding: 6px 0;
+}
+
+.promo-marquee-track {
+    display: inline-flex;
+    animation: promoMarqueeSlide 20s linear infinite;
+    will-change: transform;
+}
+
+.promo-marquee-track span {
+    color: #ffd76a;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    padding-right: 60px;
+}
+
+@keyframes promoMarqueeSlide {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+
 /* Chat Section */
 .chat-section {
     flex: 1;

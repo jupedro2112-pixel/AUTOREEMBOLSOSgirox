@@ -30,6 +30,9 @@ VIP.siteWelcome = (function () {
     let _openedAt = 0;
     let _timerId = null;
     let _onClosed = null;
+    // Tiempo mínimo de este show: 5s la PRIMERA vez (para que lean), 0 después
+    // (el cartel aparece SIEMPRE, pero las siguientes veces se cierra al toque).
+    let _minMs = MIN_VISIBLE_MS;
 
     function _alreadySeen() {
         try { return localStorage.getItem(LS_FLAG) === '1'; } catch (e) { return false; }
@@ -40,7 +43,7 @@ VIP.siteWelcome = (function () {
     }
 
     function _remainingSec() {
-        return Math.max(0, Math.ceil((MIN_VISIBLE_MS - (Date.now() - _openedAt)) / 1000));
+        return Math.max(0, Math.ceil((_minMs - (Date.now() - _openedAt)) / 1000));
     }
 
     // Actualiza la cruz y la leyenda inferior según la cuenta regresiva.
@@ -82,7 +85,7 @@ VIP.siteWelcome = (function () {
     }
 
     function _tryClose() {
-        if (Date.now() - _openedAt < MIN_VISIBLE_MS) {
+        if (Date.now() - _openedAt < _minMs) {
             _showWaitNotice();
             return;
         }
@@ -95,18 +98,19 @@ VIP.siteWelcome = (function () {
         }
     }
 
-    // Trigger principal. Devuelve true si mostró el cartel; onClosed se
-    // ejecuta recién cuando el usuario lo cierra (para encadenar otros
-    // modales sin que se pisen).
+    // Trigger principal. El cartel aparece SIEMPRE al entrar; la cuenta
+    // regresiva de 5s solo aplica la primera vez (después cierra al toque).
+    // Devuelve true si mostró el cartel; onClosed se ejecuta recién cuando
+    // el usuario lo cierra (para encadenar otros modales sin que se pisen).
     function maybeShow(onClosed) {
-        if (_alreadySeen()) return false;
         const modal = document.getElementById('siteWelcomeModal');
         if (!modal) return false;
+        _minMs = _alreadySeen() ? 0 : MIN_VISIBLE_MS;
         _onClosed = (typeof onClosed === 'function') ? onClosed : null;
         _openedAt = Date.now();
         VIP.ui.showModal('siteWelcomeModal');
         _tick();
-        _timerId = setInterval(_tick, 250);
+        if (_minMs > 0) _timerId = setInterval(_tick, 250);
         return true;
     }
 

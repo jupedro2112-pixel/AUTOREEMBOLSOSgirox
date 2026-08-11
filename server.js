@@ -8100,6 +8100,21 @@ app.get('/api/admin/balance/:username', authMiddleware, adminMiddleware, async (
   }
 });
 
+// ¿La cuenta la creó un AGENTE (admin/depositor/publisher_admin) desde el
+// panel? Son los clientes de pauta publicitaria: NO se les exige verificación
+// SMS para retirar ni para bonos (ya pasaron por un alta asistida — no pueden
+// auto-fabricarse cuentas en masa). El que se registró SOLO sigue necesitando
+// el SMS como siempre. Señales de respaldo para cuentas anteriores al campo
+// createdByAgent: acquisitionSource='manual' (lo setea el alta por publicista)
+// y accessLinkCreatedAt (el link de acceso lo genera siempre un agente).
+function isAgentCreatedUser(user) {
+  return !!user && (
+    user.createdByAgent === true ||
+    user.acquisitionSource === 'manual' ||
+    !!user.accessLinkCreatedAt
+  );
+}
+
 app.post('/api/admin/withdrawal', authMiddleware, withdrawerMiddleware, async (req, res) => {
   try {
     const { userId, username, amount, description } = req.body;
@@ -8122,8 +8137,9 @@ app.post('/api/admin/withdrawal', authMiddleware, withdrawerMiddleware, async (r
 
     // Si el usuario destino vino por flujo rápido y aún no verificó teléfono,
     // el admin tampoco puede procesar el retiro: el usuario tiene que verificar
-    // primero (decisión de negocio: anti-fraude).
-    if (user.phoneVerificationPending === true) {
+    // primero (decisión de negocio: anti-fraude). Excepción: clientes de pauta
+    // creados por un agente (isAgentCreatedUser) — sin SMS obligatorio.
+    if (!isAgentCreatedUser(user) && user.phoneVerificationPending === true) {
       return res.status(403).json({
         error: `${user.username} debe verificar un teléfono antes de poder retirar.`,
         code: 'PHONE_VERIFICATION_REQUIRED'
@@ -9754,9 +9770,10 @@ app.post('/api/movements/withdraw', authMiddleware, async (req, res) => {
 
     // Si el usuario se registró por flujo rápido (sin OTP), exigir verificación
     // de teléfono antes de permitir el primer retiro. El frontend debe abrir el
-    // modal de verify-phone cuando recibe este code.
+    // modal de verify-phone cuando recibe este code. Excepción: clientes de
+    // pauta creados por un agente (isAgentCreatedUser) — sin SMS obligatorio.
     const userForCheck = await User.findOne({ id: req.user.userId }).lean();
-    if (userForCheck && userForCheck.phoneVerificationPending === true) {
+    if (userForCheck && !isAgentCreatedUser(userForCheck) && userForCheck.phoneVerificationPending === true) {
       return res.status(403).json({
         error: 'Para retirar primero tenés que verificar un número de teléfono.',
         code: 'PHONE_VERIFICATION_REQUIRED'
@@ -9876,8 +9893,9 @@ app.post('/api/withdrawal/request', authMiddleware, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
     // Para retirar, la cuenta debe tener el teléfono verificado por SMS.
-    // El registro es sin SMS, pero el retiro siempre exige verificación.
-    if (user.phoneVerified !== true) {
+    // El registro es sin SMS, pero el retiro exige verificación — salvo para
+    // clientes de pauta creados por un agente (isAgentCreatedUser).
+    if (!isAgentCreatedUser(user) && user.phoneVerified !== true) {
       return res.status(400).json({
         error: 'Para retirar tu premio necesitás verificar tu teléfono por SMS.',
         code: 'PHONE_VERIFICATION_REQUIRED'
@@ -10120,10 +10138,7 @@ app.post('/api/install-bonus/claim', authMiddleware, async (req, res) => {
     // sigue necesitando el SMS como siempre. Señales de respaldo para cuentas
     // creadas antes del campo createdByAgent: acquisitionSource='manual'
     // (publisher) y accessLinkCreatedAt (el link lo genera siempre un agente).
-    const _agentCreated = user.createdByAgent === true ||
-      user.acquisitionSource === 'manual' ||
-      !!user.accessLinkCreatedAt;
-    if (!_agentCreated && user.phoneVerified !== true) {
+    if (!isAgentCreatedUser(user) && user.phoneVerified !== true) {
       return res.status(400).json({
         error: 'Para reclamar el bono necesitás tener tu teléfono verificado por SMS. Verificalo y volvé a tocar "Reclamar".',
         code: 'PHONE_VERIFICATION_REQUIRED'
