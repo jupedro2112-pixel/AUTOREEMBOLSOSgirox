@@ -15,6 +15,12 @@
   prefijo (solo cuentan equipos CON link de Telegram cargado, para que uno sin
   link no gane el match). Prioridad: comunidad del equipo → Canal Oficial
   (card Comunidad) → Telegram GENERAL (sección equipos) → `/`.
+- **FILTRO ANTI-MEZCLA (owner: "sin margen de error"):** la detección aplica
+  SOLO a usuarios `isAgentCreatedUser` (lookup por `usernameLower`, indexado) —
+  los únicos cuyo nombre sigue la convención de prefijos de los equipos. Un
+  auto-registrado llamado "martina…" o "ignacio…" NO cae en MARSHALL/IGNITE:
+  va siempre al Canal Oficial. Caso residual imposible de resolver en código:
+  que un EQUIPO cree un usuario con el prefijo de OTRO equipo.
 - **Front (chat.js):** `_applyCanalUrl` — con usuario logueado los dos botones
   apuntan SIEMPRE a `/go/comunidad?u=<username>` (el server decide al momento
   del click, config siempre fresca); sin username, comportamiento anterior

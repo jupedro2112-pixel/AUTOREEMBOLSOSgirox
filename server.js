@@ -17397,28 +17397,42 @@ app.get('/go/comunidad', async (req, res) => {
     // comunidad de Telegram de ESE equipo. Prioridad de fallbacks: equipo sin
     // link (o sin equipo) → Canal Oficial de la card Comunidad → Telegram
     // GENERAL de la sección de equipos → inicio del dominio.
+    //
+    // FILTRO ANTI-MEZCLA (owner 2026-08-11): la detección aplica SOLO a
+    // usuarios creados por un agente/equipo (isAgentCreatedUser — los únicos
+    // cuyo nombre sigue la convención de prefijos). Un auto-registrado puede
+    // llamarse "martina..." o "ignacio..." sin tener nada que ver con
+    // MARSHALL/IGNITE: para ellos el botón va SIEMPRE al Canal Oficial, así
+    // no se mezclan las comunidades de los equipos.
     const u = String(req.query.u || '').trim().toLowerCase().slice(0, 50);
-    let cfgEquipos = null;
     if (u) {
-      cfgEquipos = await ensureEquiposWaConfig();
-      const equipos = Array.isArray(cfgEquipos.equipos) ? cfgEquipos.equipos : [];
-      let match = null;
-      for (const eq of equipos) {
-        const pref = String(eq.prefijo || '').trim().toLowerCase();
-        // Solo cuentan los equipos CON link de Telegram cargado: uno sin link
-        // no debe "ganar" el match y mandarte al fallback pudiendo otro prefijo.
-        if (!pref || !normalizeTelegramLink(eq.telegram)) continue;
-        if (u.startsWith(pref) && (!match || pref.length > String(match.prefijo).toLowerCase().length)) {
-          match = eq;
+      const dbUser = await User.findOne({ usernameLower: u })
+        .select('createdByAgent acquisitionSource accessLinkCreatedAt')
+        .lean();
+      if (dbUser && isAgentCreatedUser(dbUser)) {
+        const cfgEq = await ensureEquiposWaConfig();
+        const equipos = Array.isArray(cfgEq.equipos) ? cfgEq.equipos : [];
+        let match = null;
+        for (const eq of equipos) {
+          const pref = String(eq.prefijo || '').trim().toLowerCase();
+          // Solo cuentan los equipos CON link de Telegram cargado: uno sin
+          // link no debe "ganar" el match y tapar el fallback.
+          if (!pref || !normalizeTelegramLink(eq.telegram)) continue;
+          if (u.startsWith(pref) && (!match || pref.length > String(match.prefijo).toLowerCase().length)) {
+            match = eq;
+          }
         }
+        if (match) url = normalizeTelegramLink(match.telegram);
       }
-      if (match) url = normalizeTelegramLink(match.telegram);
     }
     if (!url) {
       const c = (await getConfig('communityConfig')) || {};
       url = c.channelUrl || c.url || (await getConfig('canalInformativoUrl', '')) || '';
     }
-    if (!url && cfgEquipos) url = normalizeTelegramLink(cfgEquipos.telegramGeneral);
+    if (!url) {
+      const cfgEq = await ensureEquiposWaConfig();
+      url = normalizeTelegramLink(cfgEq.telegramGeneral);
+    }
   } catch (_) { /* DB caída: cae al inicio */ }
   res.redirect(302, /^https?:\/\//i.test(url) ? url : '/');
 });
