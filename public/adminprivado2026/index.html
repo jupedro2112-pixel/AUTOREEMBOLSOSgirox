@@ -2265,7 +2265,8 @@ document.addEventListener('change', function (ev) {
                 </div>
                 <div class="cbu-form">
                     <p style="color:#aaa;font-size:12px;margin:0 0 10px;">
-                        Si el usuario empieza con el prefijo, el cartel de bienvenida le da el botón de WhatsApp de ese equipo.
+                        Si el usuario empieza con el prefijo, el cartel de bienvenida le da el botón de WhatsApp de ese equipo
+                        y, si tiene link cargado, también el de su comunidad de Telegram.
                         Ejemplo: prefijo <code>vip</code> matchea <code>vipjuan22</code>. Si dos prefijos coinciden, gana el más largo.
                     </p>
                     <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
@@ -2274,6 +2275,7 @@ document.addEventListener('change', function (ev) {
                                 <th style="padding:.4rem .6rem;text-align:left;color:#a5b4fc;font-size:12px;">Prefijo</th>
                                 <th style="padding:.4rem .6rem;text-align:left;color:#a5b4fc;font-size:12px;">Equipo (opcional)</th>
                                 <th style="padding:.4rem .6rem;text-align:left;color:#a5b4fc;font-size:12px;">WhatsApp (con cód. país)</th>
+                                <th style="padding:.4rem .6rem;text-align:left;color:#a5b4fc;font-size:12px;">Telegram (link, opcional)</th>
                                 <th style="width:40px;"></th>
                             </tr>
                         </thead>
@@ -2283,6 +2285,11 @@ document.addEventListener('change', function (ev) {
                         <label>WhatsApp GENERAL (si no se detecta ningún equipo):</label>
                         <input type="text" id="equiposWaGeneral" placeholder="5491122334455" maxlength="20" style="width:100%;">
                         <small style="color:#aaa;font-size:11px;">Fallback para que nadie quede sin contacto: si el usuario no matchea ningún prefijo, el cartel le ofrece este número. Vacío = sin fallback.</small>
+                    </div>
+                    <div class="form-group" style="margin-top:10px;">
+                        <label>Telegram GENERAL (si no se detecta ningún equipo):</label>
+                        <input type="text" id="equiposWaTelegramGeneral" placeholder="t.me/comunidad" maxlength="200" style="width:100%;">
+                        <small style="color:#aaa;font-size:11px;">Link de la comunidad de Telegram general. Acepta <code>t.me/nombre</code>, <code>@nombre</code> o el link completo. Vacío = sin botón de Telegram en el fallback.</small>
                     </div>
                     <div style="display:flex; gap:8px;">
                         <button class="btn btn-secondary" onclick="addEquipoWaRow()">➕ Agregar equipo</button>

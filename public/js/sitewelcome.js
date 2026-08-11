@@ -150,6 +150,14 @@ VIP.siteWelcome = (function () {
             const resp = await fetch(`${VIP.config.API_URL}/api/config/equipo-whatsapp?username=${encodeURIComponent(username)}`);
             const data = await resp.json().catch(() => ({}));
             if (resp.ok && data.found && data.url) {
+                // Botón de la comunidad de Telegram del equipo (si el panel
+                // cargó el link para ese equipo).
+                var tgBtn = data.telegramUrl
+                    ? '<a href="' + data.telegramUrl + '" target="_blank" rel="noopener" ' +
+                         'style="display:block; background:#229ED9; color:#fff; font-weight:bold; text-decoration:none; padding:12px; border-radius:8px; font-size:14px; margin-top:8px;">' +
+                          '📣 Unirme a la comunidad de Telegram' +
+                      '</a>'
+                    : '';
                 _renderTeamResult(
                     '<div style="background:rgba(37,211,102,0.1); border:1px solid rgba(37,211,102,0.4); border-radius:8px; padding:12px; text-align:center;">' +
                         '<p style="margin:0 0 10px; font-size:13px;">✅ ¡Detectamos tu equipo! Tocá el botón y pedí tu acceso:</p>' +
@@ -157,18 +165,28 @@ VIP.siteWelcome = (function () {
                            'style="display:block; background:#25d366; color:#fff; font-weight:bold; text-decoration:none; padding:12px; border-radius:8px; font-size:14px;">' +
                             '💬 Hablar por WhatsApp' +
                         '</a>' +
+                        tgBtn +
                     '</div>'
                 );
-            } else if (resp.ok && !data.found && data.generalUrl) {
-                // Sin equipo detectado pero hay WhatsApp GENERAL: derivar ahí
-                // para que nadie quede sin contacto.
+            } else if (resp.ok && !data.found && (data.generalUrl || data.generalTelegramUrl)) {
+                // Sin equipo detectado pero hay contactos GENERALES: derivar
+                // ahí para que nadie quede sin contacto.
+                var waGen = data.generalUrl
+                    ? '<a href="' + data.generalUrl + '" target="_blank" rel="noopener" ' +
+                         'style="display:block; background:#25d366; color:#fff; font-weight:bold; text-decoration:none; padding:12px; border-radius:8px; font-size:14px;">' +
+                          '💬 Hablar con el WhatsApp general' +
+                      '</a>'
+                    : '';
+                var tgGen = data.generalTelegramUrl
+                    ? '<a href="' + data.generalTelegramUrl + '" target="_blank" rel="noopener" ' +
+                         'style="display:block; background:#229ED9; color:#fff; font-weight:bold; text-decoration:none; padding:12px; border-radius:8px; font-size:14px;' + (waGen ? ' margin-top:8px;' : '') + '">' +
+                          '📣 Unirme a la comunidad de Telegram' +
+                      '</a>'
+                    : '';
                 _renderTeamResult(
                     '<div style="background:rgba(212,175,55,0.08); border:1px solid rgba(212,175,55,0.35); border-radius:8px; padding:12px; text-align:center;">' +
-                        '<p style="margin:0 0 10px; font-size:13px;">🤔 No detectamos tu equipo con ese usuario, pero podés hablar con nuestro <strong>WhatsApp general</strong> y ellos te ayudan:</p>' +
-                        '<a href="' + data.generalUrl + '" target="_blank" rel="noopener" ' +
-                           'style="display:block; background:#25d366; color:#fff; font-weight:bold; text-decoration:none; padding:12px; border-radius:8px; font-size:14px;">' +
-                            '💬 Hablar con el WhatsApp general' +
-                        '</a>' +
+                        '<p style="margin:0 0 10px; font-size:13px;">🤔 No detectamos tu equipo con ese usuario, pero podés hablar con nuestro <strong>canal general</strong> y ellos te ayudan:</p>' +
+                        waGen + tgGen +
                     '</div>'
                 );
             } else if (resp.ok && !data.found) {

@@ -4,7 +4,58 @@
 > commit por commit está en `git log --oneline`. Esto captura decisiones, umbrales de
 > negocio y pendientes que NO se ven leyendo el código.
 >
-> **Última actualización: 2026-08-06**
+> **Última actualización: 2026-08-11**
+
+## Sesión 2026-08-11 (repo AUTOREEMBOLSOSgirox)
+
+### 154. Comunidad de TELEGRAM por equipo (mismo mecanismo que el WhatsApp por equipo)
+- **Pedido del owner:** igual que se detecta el equipo por el inicio del
+  usuario para dar el WhatsApp, dar también el link de la COMUNIDAD de
+  Telegram del equipo que corresponda.
+- **Config:** `equiposWhatsapp` suma `telegram` por equipo y `telegramGeneral`
+  (fallback). El server normaliza lo que cargue el panel con
+  `normalizeTelegramLink()` (acepta `t.me/x`, `@x` o URL completa → guarda
+  siempre `https://t.me/...`). Los seeds nacen con `telegram: ''` — **los
+  links reales se cargan desde el panel** (no había datos al implementar).
+  Configs ya existentes en la base: sin backfill — `telegram` undefined se
+  trata como vacío (sin botón) hasta que el admin guarde.
+- **API:** `GET /api/config/equipo-whatsapp` suma `telegramUrl` (equipo
+  detectado) y `generalTelegramUrl` (fallback); el fallback ahora responde si
+  hay WhatsApp general O Telegram general. Admin GET/POST manejan los campos
+  nuevos (POST normaliza y persiste).
+- **Front:** el buscador del cartel de bienvenida muestra el botón celeste
+  "📣 Unirme a la comunidad de Telegram" debajo del de WhatsApp (equipo y
+  fallback general). Panel: columna "Telegram (link, opcional)" en la tabla
+  de equipos + campo "Telegram GENERAL".
+- **Validado:** `node --check` OK (server.js, sitewelcome.js, admin.js).
+  PROBAR tras deploy: cargar un link en el panel, guardar, y buscar un
+  usuario de ese equipo en el cartel.
+
+### 153. Catch-up de la semana (features commiteadas sin entrada — ver git log)
+- Este repo nuevo (github.com/jupedro2112-pixel/AUTOREEMBOLSOSgirox, PÚBLICO —
+  jamás commitear secretos) arrancó con la copia del proyecto y sumó, entre
+  2026-08-07 y 2026-08-10, sin entradas de WORKLOG en su momento:
+  - **Cartel de bienvenida** (`public/js/sitewelcome.js` + modal en
+    index.html): anuncia la página nueva + 10% en primeras cargas; aparece
+    SIEMPRE al entrar, candado de 5 s con cuenta regresiva solo la primera
+    vez (`vip_siteWelcomeSeen`); al cerrarlo encadena el welcome de
+    publicista.
+  - **WhatsApp por equipo:** buscador en el cartel (prefijo del usuario →
+    WhatsApp del equipo), config `equiposWhatsapp` con seed lazy
+    (`ensureEquiposWaConfig`), fallback GENERAL, sección editable en el panel.
+  - **Banner deslizante 10%** (`.promo-marquee` en chat.css): texto de agosto
+    HARDCODEADO — cambiar/parametrizar en septiembre.
+  - **Exención de SMS para clientes de pauta:** `isAgentCreatedUser()` en
+    server.js — usuarios creados por agentes/publisher no necesitan SMS para
+    retirar ni para el bono de instalación; los autorregistrados sí.
+  - **Render:** `server.listen()` ANTES de `initializeData()` (los deploys
+    daban "Timed out" por la ventana de detección de puerto) + timeout de
+    10 s al adapter de Redis. Pendiente: `initializeData` a veces no termina
+    en Render (log `[boot] initializeData + adaptadores completados` no
+    confirmado).
+  - **AWS:** en curso rollback del entorno EB `FABIOREEMBOLSOS` a la versión
+    jugaygana `FABIO27demayoo` con secrets en SSM `/reembolsosjugaygana/prod/`
+    (script con valores reales en `~/Documents/`, FUERA del repo).
 
 ## Sesión 2026-08-06
 

@@ -6181,10 +6181,12 @@ function _equipoWaRowHtml(eq) {
     const prefijo = (eq && eq.prefijo) || '';
     const nombre = (eq && eq.nombre) || '';
     const numero = (eq && eq.numero) || '';
+    const telegram = (eq && eq.telegram) || '';
     return '<tr>' +
         '<td style="padding:.3rem .4rem;"><input type="text" class="equipoWaPrefijo" value="' + prefijo.replace(/"/g, '&quot;') + '" placeholder="vip" maxlength="20" style="width:100%;"></td>' +
         '<td style="padding:.3rem .4rem;"><input type="text" class="equipoWaNombre" value="' + nombre.replace(/"/g, '&quot;') + '" placeholder="Equipo VIP" maxlength="50" style="width:100%;"></td>' +
         '<td style="padding:.3rem .4rem;"><input type="text" class="equipoWaNumero" value="' + numero.replace(/"/g, '&quot;') + '" placeholder="5491122334455" maxlength="20" style="width:100%;"></td>' +
+        '<td style="padding:.3rem .4rem;"><input type="text" class="equipoWaTelegram" value="' + telegram.replace(/"/g, '&quot;') + '" placeholder="t.me/comunidad" maxlength="200" style="width:100%;"></td>' +
         '<td style="padding:.3rem .4rem; text-align:center;"><button type="button" onclick="this.closest(\'tr\').remove()" title="Quitar" style="background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:16px;">🗑</button></td>' +
     '</tr>';
 }
@@ -6209,6 +6211,8 @@ async function loadEquiposWhatsapp() {
         if (!data.equipos || !data.equipos.length) addEquipoWaRow();
         const generalInput = document.getElementById('equiposWaGeneral');
         if (generalInput) generalInput.value = data.general || '';
+        const tgGeneralInput = document.getElementById('equiposWaTelegramGeneral');
+        if (tgGeneralInput) tgGeneralInput.value = data.telegramGeneral || '';
     } catch (error) {
         console.error('Error loading equipos whatsapp:', error);
     }
@@ -6222,10 +6226,13 @@ async function saveEquiposWhatsapp() {
         const prefijo = (tr.querySelector('.equipoWaPrefijo') || {}).value || '';
         const nombre = (tr.querySelector('.equipoWaNombre') || {}).value || '';
         const numero = (tr.querySelector('.equipoWaNumero') || {}).value || '';
-        if (prefijo.trim() || numero.trim()) equipos.push({ prefijo: prefijo.trim(), nombre: nombre.trim(), numero: numero.trim() });
+        const telegram = (tr.querySelector('.equipoWaTelegram') || {}).value || '';
+        if (prefijo.trim() || numero.trim()) equipos.push({ prefijo: prefijo.trim(), nombre: nombre.trim(), numero: numero.trim(), telegram: telegram.trim() });
     });
     const generalInput = document.getElementById('equiposWaGeneral');
     const general = generalInput ? generalInput.value.trim() : '';
+    const tgGeneralInput = document.getElementById('equiposWaTelegramGeneral');
+    const telegramGeneral = tgGeneralInput ? tgGeneralInput.value.trim() : '';
     try {
         const response = await fetch(`${API_URL}/api/admin/equipos-whatsapp`, {
             method: 'POST',
@@ -6233,7 +6240,7 @@ async function saveEquiposWhatsapp() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${currentToken}`
             },
-            body: JSON.stringify({ equipos, general })
+            body: JSON.stringify({ equipos, general, telegramGeneral })
         });
         const data = await response.json();
         if (response.ok) {
@@ -6242,6 +6249,7 @@ async function saveEquiposWhatsapp() {
             (data.equipos || []).forEach(eq => addEquipoWaRow(eq));
             if (!data.equipos || !data.equipos.length) addEquipoWaRow();
             if (generalInput) generalInput.value = data.general || '';
+            if (tgGeneralInput) tgGeneralInput.value = data.telegramGeneral || '';
             showToast(`${(data.equipos || []).length} equipos guardados`, 'success');
         } else {
             showToast(data.error || 'Error al guardar', 'error');

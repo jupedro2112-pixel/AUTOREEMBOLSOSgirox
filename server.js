@@ -17519,7 +17519,10 @@ app.post('/api/admin/soporte-vip', authMiddleware, adminMiddleware, async (req, 
 // girox: el cartel de bienvenida les ofrece averiguar el WhatsApp de su
 // equipo principal a partir del inicio de su nombre de usuario, para pedir
 // ahí su acceso. La config vive en el config store genérico bajo
-// 'equiposWhatsapp' = { equipos: [{ prefijo, nombre, numero }] }.
+// 'equiposWhatsapp' = { equipos: [{ prefijo, nombre, numero, telegram }],
+//                       general, telegramGeneral }.
+// `telegram` es el link de la COMUNIDAD de Telegram del equipo (t.me/...);
+// se muestra junto al WhatsApp cuando se detecta el equipo.
 // ============================================================
 
 // Mensaje con el que se abre el chat del equipo. {username} se reemplaza.
@@ -17527,22 +17530,35 @@ const EQUIPO_WA_MENSAJE = 'Hola! Hablo de la pagina de autoreembolsos. Mi usuari
 
 // Seed inicial: prefijo (primeras 3 letras del equipo) → línea principal.
 // Cuando un equipo tenía varias líneas, se tomó la de MÁS usuarios.
+// Los links de Telegram se cargan desde el panel (no había datos al seedear).
 const EQUIPOS_WA_SEED = [
-  { prefijo: 'roy', nombre: 'ROYAL',    numero: '573003263912' },
-  { prefijo: 'mar', nombre: 'MARSHALL', numero: '50251348557' },
-  { prefijo: 'arg', nombre: 'ARGENTUM', numero: '5213342893092' },
-  { prefijo: 'ign', nombre: 'IGNITE',   numero: '573003263912' },
-  { prefijo: 'tig', nombre: 'TIGER',    numero: '5214443232341' },
-  { prefijo: 'ato', nombre: 'ATOMIC',   numero: '573228681826' },
-  { prefijo: 'zz',  nombre: 'ZZ',       numero: '5521970547821' },
-  { prefijo: 'tri', nombre: 'TRIBET',   numero: '593969325404' },
-  { prefijo: 'cra', nombre: 'CRAZY',    numero: '59163026150' },
-  { prefijo: 'gen', nombre: 'GENERAL',  numero: '573228681826' }
+  { prefijo: 'roy', nombre: 'ROYAL',    numero: '573003263912',  telegram: '' },
+  { prefijo: 'mar', nombre: 'MARSHALL', numero: '50251348557',   telegram: '' },
+  { prefijo: 'arg', nombre: 'ARGENTUM', numero: '5213342893092', telegram: '' },
+  { prefijo: 'ign', nombre: 'IGNITE',   numero: '573003263912',  telegram: '' },
+  { prefijo: 'tig', nombre: 'TIGER',    numero: '5214443232341', telegram: '' },
+  { prefijo: 'ato', nombre: 'ATOMIC',   numero: '573228681826',  telegram: '' },
+  { prefijo: 'zz',  nombre: 'ZZ',       numero: '5521970547821', telegram: '' },
+  { prefijo: 'tri', nombre: 'TRIBET',   numero: '593969325404',  telegram: '' },
+  { prefijo: 'cra', nombre: 'CRAZY',    numero: '59163026150',   telegram: '' },
+  { prefijo: 'gen', nombre: 'GENERAL',  numero: '573228681826',  telegram: '' }
 ];
 
 // WhatsApp GENERAL: fallback cuando el usuario no matchea ningún prefijo,
 // para que nadie quede sin contacto. Configurable desde el panel.
 const EQUIPOS_WA_GENERAL_SEED = '573228681826';
+
+// Normaliza lo que cargue el admin como link de Telegram: acepta URL completa,
+// "t.me/comunidad" o "@comunidad" y devuelve siempre https://t.me/...
+// Vacío o inválido → '' (equipo sin botón de Telegram).
+function normalizeTelegramLink(raw) {
+  let s = String(raw || '').trim().slice(0, 200);
+  if (!s) return '';
+  if (/^https?:\/\//i.test(s)) return s;
+  s = s.replace(/^@/, '').replace(/^t\.me\//i, '');
+  if (!s) return '';
+  return 'https://t.me/' + s;
+}
 
 // Devuelve la config de equipos, creándola con el seed la PRIMERA vez que
 // alguien la consulta (lazy). Así no depende de que initializeData termine:
@@ -17588,23 +17604,29 @@ app.get('/api/config/equipo-whatsapp', async (req, res) => {
 
     if (!match) {
       // Fallback: sin equipo detectado, derivar al WhatsApp GENERAL (si está
-      // configurado) para que el usuario no quede sin contacto.
+      // configurado) para que el usuario no quede sin contacto. Idem con la
+      // comunidad de Telegram general si existe.
       const generalNum = String(cfg.general || '').replace(/\D/g, '');
-      if (generalNum) {
-        return res.json({
-          found: false,
-          generalUrl: 'https://wa.me/' + generalNum + '?text=' + encodeURIComponent(texto)
-        });
+      const generalTg = normalizeTelegramLink(cfg.telegramGeneral);
+      if (generalNum || generalTg) {
+        const out = { found: false };
+        if (generalNum) out.generalUrl = 'https://wa.me/' + generalNum + '?text=' + encodeURIComponent(texto);
+        if (generalTg) out.generalTelegramUrl = generalTg;
+        return res.json(out);
       }
       return res.json({ found: false });
     }
 
     const numero = String(match.numero).replace(/\D/g, '');
-    res.json({
+    const out = {
       found: true,
       equipo: match.nombre || '',
       url: 'https://wa.me/' + numero + '?text=' + encodeURIComponent(texto)
-    });
+    };
+    // Comunidad de Telegram del equipo (si el panel la cargó).
+    const tg = normalizeTelegramLink(match.telegram);
+    if (tg) out.telegramUrl = tg;
+    res.json(out);
   } catch (err) {
     logger.error(`/api/config/equipo-whatsapp: ${err.message}`);
     res.status(500).json({ error: 'Error del servidor' });
@@ -17617,7 +17639,8 @@ app.get('/api/admin/equipos-whatsapp', authMiddleware, adminMiddleware, async (r
     const cfg = await ensureEquiposWaConfig();
     res.json({
       equipos: Array.isArray(cfg.equipos) ? cfg.equipos : [],
-      general: String(cfg.general || '')
+      general: String(cfg.general || ''),
+      telegramGeneral: String(cfg.telegramGeneral || '')
     });
   } catch (err) {
     logger.error(`GET /api/admin/equipos-whatsapp: ${err.message}`);
@@ -17642,7 +17665,10 @@ app.post('/api/admin/equipos-whatsapp', authMiddleware, adminMiddleware, async (
       if (numero.length < 8) return res.status(400).json({ error: `Número inválido para el prefijo "${prefijo}" (mínimo 8 dígitos, con código de país)` });
       if (vistos.has(prefijo)) return res.status(400).json({ error: `Prefijo repetido: "${prefijo}"` });
       vistos.add(prefijo);
-      equipos.push({ prefijo, nombre, numero });
+      // Link de comunidad de Telegram del equipo (opcional). Se guarda ya
+      // normalizado a https://t.me/... para que el front lo use tal cual.
+      const telegram = normalizeTelegramLink(eq && eq.telegram);
+      equipos.push({ prefijo, nombre, numero, telegram });
     }
 
     // WhatsApp general (fallback sin equipo). Vacío = sin fallback.
@@ -17651,9 +17677,12 @@ app.post('/api/admin/equipos-whatsapp', authMiddleware, adminMiddleware, async (
       return res.status(400).json({ error: 'Número general inválido (mínimo 8 dígitos, con código de país)' });
     }
 
-    await setConfig('equiposWhatsapp', { equipos, general });
-    logger.info(`[equipos-whatsapp] ${equipos.length} equipos + general=${general || '(vacío)'} guardados por ${(req.user && req.user.username) || '?'}`);
-    res.json({ success: true, equipos, general });
+    // Telegram general (fallback sin equipo). Vacío = sin fallback.
+    const telegramGeneral = normalizeTelegramLink(req.body && req.body.telegramGeneral);
+
+    await setConfig('equiposWhatsapp', { equipos, general, telegramGeneral });
+    logger.info(`[equipos-whatsapp] ${equipos.length} equipos + general=${general || '(vacío)'} + tgGeneral=${telegramGeneral || '(vacío)'} guardados por ${(req.user && req.user.username) || '?'}`);
+    res.json({ success: true, equipos, general, telegramGeneral });
   } catch (err) {
     logger.error(`POST /api/admin/equipos-whatsapp: ${err.message}`);
     res.status(500).json({ error: 'Error del servidor' });
